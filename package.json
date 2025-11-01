@@ -1,20 +1,19 @@
 {
   "name": "blog-platform",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "seed": "tsx scripts/seed-themes.ts"
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0",
-    "@sindresorhus/slugify": "^2.2.1",
-    "argon2": "^0.40.3",
     "next": "14.2.15",
-    "next-auth": "^4.24.7",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "rehype": "^13.0.1",
@@ -24,14 +23,5 @@
     "remark-html": "^16.0.1",
     "zod": "^3.23.8"
   },
-  "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "14.2.15",
-    "prisma": "^5.22.0",
-    "tsx": "^4.19.2",
-    "typescript": "^5"
-  }
+  "devDependencies": {}
 }

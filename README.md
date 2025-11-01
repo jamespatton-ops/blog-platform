@@ -1,11 +1,10 @@
 # Writing Portfolio
 
-A minimalist writing portfolio built with Next.js 14, Prisma, and NextAuth. Posts are written in Markdown and rendered to sanitized HTML on the server. A single owner can draft, publish, and theme the site using CSS variables.
+A minimalist writing portfolio built with Next.js 14. Posts are written in Markdown and rendered to sanitized HTML on the server. A single owner can draft, publish, and theme the site using CSS variables.
 
 ## Prerequisites
 
 - Node.js 18+
-- SQLite (bundled with Node)
 
 ## Setup
 
@@ -13,21 +12,20 @@ A minimalist writing portfolio built with Next.js 14, Prisma, and NextAuth. Post
    ```bash
    npm install
    ```
-2. Apply the initial database migration:
+2. Create the local JSON database file:
    ```bash
-   npx prisma migrate dev --name init
+   npm run migrate
    ```
 3. Seed the default owner account and "Plain" theme:
    ```bash
-   npx tsx scripts/seed-themes.ts
+   npm run seed
    ```
 
 Environment defaults are provided in `.env`:
 
 ```bash
-DATABASE_URL="file:./dev.db"
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="changeme"
+DATABASE_PATH="./data/app.json"
+SESSION_SECRET="change-me"
 OWNER_EMAIL="owner@example.com"
 OWNER_PASSWORD="owner-password"
 OWNER_ID="OWNER"
@@ -52,4 +50,4 @@ Open http://localhost:3000 to view the reader experience. The owner can sign in 
 
 ## Deployment
 
-When deploying (e.g., to Vercel), set the same environment variables and migrate the database. If SQLite outgrows local storage, point `DATABASE_URL` to a remote SQLite-compatible provider such as Turso.
+See [DEPLOY.md](./DEPLOY.md) for deployment instructions without Prisma.
