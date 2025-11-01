@@ -1,0 +1,46 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id     String @id @default(cuid())
+  email  String @unique
+  hash   String
+  posts  Post[]
+  theme  Theme?
+}
+
+model Post {
+  id         String     @id @default(cuid())
+  authorId   String
+  title      String
+  slug       String     @unique
+  content_md String
+  status     PostStatus @default(DRAFT)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  author     User       @relation(fields: [authorId], references: [id])
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Theme {
+  id                String @id @default(cuid())
+  userId            String @unique
+  font_stack        String @default("-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Inter,Arial,sans-serif")
+  max_width_ch      Int    @default(72)
+  base_font_size_px Int    @default(18)
+  leading           Float  @default(1.55)
+  text_color        String @default("#0b0b0b")
+  bg_color          String @default("#ffffff")
+  accent_color      String @default("#0f62fe")
+  user              User   @relation(fields: [userId], references: [id])
+}
