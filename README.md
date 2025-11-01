@@ -1,6 +1,15 @@
-# Writing Portfolio
+# Plain Journal
 
-A minimalist writing portfolio built with Next.js 14. Posts are written in Markdown and rendered to sanitized HTML on the server. A single owner can draft, publish, and theme the site using CSS variables.
+A minimalist journaling blog built with Next.js 14, Prisma, and NextAuth. Entries are written in Markdown, rendered to sanitized HTML on the server, and presented in a calm, typographic layout that can be tuned through theme tokens.
+
+## Features
+
+- Credentials-based authentication for the single owner account.
+- Focused writing surface with autosave, publish toggle, live Markdown preview, and unsaved changes guard.
+- Per-post theme overrides backed by a JSON token system with instant preview.
+- Self-hosted font registration with automatic `@font-face` injection.
+- Sanitized Markdown pipeline (`remark` → `remark-gfm` → `rehype` → `rehype-sanitize`).
+- Timeline homepage grouped by month for published entries.
 
 ## Prerequisites
 
@@ -9,45 +18,97 @@ A minimalist writing portfolio built with Next.js 14. Posts are written in Markd
 ## Setup
 
 1. Install dependencies:
+
    ```bash
    npm install
    ```
-2. Create the local JSON database file:
+
+2. Apply the initial Prisma migration (creates `./prisma/dev.db` by default):
+
    ```bash
-   npm run migrate
+   npm run migrate:dev
    ```
-3. Seed the default owner account and "Plain" theme:
+
+   For CI/production use `npm run migrate`.
+
+3. Seed the owner account and default theme:
+
    ```bash
    npm run seed
    ```
 
-Environment defaults are provided in `.env`:
+   The seeded credentials are `owner@example.com` with password `password123`.
 
-```bash
-DATABASE_PATH="./data/app.json"
-SESSION_SECRET="change-me"
-OWNER_EMAIL="owner@example.com"
-OWNER_PASSWORD="owner-password"
-OWNER_ID="OWNER"
+4. Start the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+   Visit http://localhost:3000 for the public view and http://localhost:3000/login to sign in.
+
+## Theme tokens
+
+Each theme stores the following JSON structure:
+
+```json
+{
+  "fonts": {
+    "sans": "",
+    "serif": "",
+    "mono": "",
+    "body": "",
+    "headings": "",
+    "code": "",
+    "opticalSizing": true,
+    "liga": true
+  },
+  "type": {
+    "basePx": 18,
+    "leading": 1.5,
+    "maxCh": 72,
+    "hScale": 1.2,
+    "paraSpace": 0.6
+  },
+  "colors": {
+    "light": { "bg": "", "text": "", "muted": "", "accent": "" },
+    "dark": { "bg": "", "text": "", "muted": "", "accent": "" },
+    "hc": { "bg": "", "text": "", "muted": "", "accent": "" }
+  },
+  "links": {
+    "underline": true,
+    "offset": 3,
+    "thickness": 1
+  },
+  "rules": {
+    "hyphens": "manual",
+    "orphans": 2,
+    "widows": 2
+  }
+}
 ```
 
-## Development
+Editing a theme at `/settings/theme` updates the `:root` CSS variables live so you can tune typography and color without reloading. Registered fonts are exposed via `@font-face` and can be referenced in the token JSON.
 
-Start the development server with:
+## Environment
 
-```bash
-npm run dev
-```
+The app reads configuration from `.env` (see `.env` in the repository for defaults):
 
-Open http://localhost:3000 to view the reader experience. The owner can sign in at http://localhost:3000/login with the seeded credentials. Drafts autosave every three seconds from `/write`, and publishing toggles the post status. Markdown is rendered through `remark`/`rehype` with `rehype-sanitize` to prevent unsafe HTML.
+- `DATABASE_URL` – SQLite connection string (`file:./prisma/dev.db`).
+- `NEXTAUTH_SECRET` – secret for NextAuth JWTs.
+- `NEXTAUTH_URL` – base URL for authentication callbacks.
+- `OWNER_EMAIL`, `OWNER_PASSWORD`, `OWNER_ID` – seed data for the owner account.
 
-## Testing the flow
+## Useful commands
 
-1. Sign in at `/login` using `owner@example.com` / `owner-password`.
-2. Visit `/write`, create a draft, and wait for autosave to finish.
-3. Toggle **Publish**, then open the generated slug under `/p/{slug}` to view the sanitized HTML.
-4. Adjust the site theme at `/settings/theme` by editing the JSON tokens.
+- `npm run migrate` – apply pending migrations (deploy).
+- `npm run migrate:dev` – apply migrations in development with prompts.
+- `npm run prisma:generate` – regenerate the Prisma client.
+- `npm run seed` – seed the default owner and theme.
+- `npm run build` / `npm run start` – production build and run.
 
-## Deployment
+## Security
 
-See [DEPLOY.md](./DEPLOY.md) for deployment instructions without Prisma.
+- Markdown rendering is sanitized to prevent unsafe HTML injection.
+- All write/edit/settings routes are protected by NextAuth middleware.
+- Uploaded fonts are stored under `public/fonts/` and referenced by the stored URL.

@@ -1,37 +1,36 @@
 import { notFound } from 'next/navigation';
-import { safeDb } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { mdToHtml } from '@/lib/markdown';
-import { coerceTokens, tokensToCssVars } from '@/lib/theme';
-import { DEFAULT_TOKENS } from '@/lib/tokens';
-import Prose from '@/components/Prose';
+import { tokensToCssVars } from '@/lib/theme';
+import { coerceTokens } from '@/lib/tokens';
+
+export const revalidate = 60;
 
 export default async function PostPage({ params }) {
-  const db = await safeDb();
-  if (!db.available) {
-    return (
-      <main>
-        <p style={{ marginTop: '2rem', opacity: 0.7 }}>
-          Database not initialized. Run <code>npm run migrate</code> and <code>npm run seed</code> to publish posts.
-        </p>
-      </main>
-    );
-  }
+  const post = await prisma.post.findUnique({
+    where: { slug: params.slug },
+    include: { theme: true }
+  });
 
-  const post = await db.client.getPostBySlug(params.slug);
   if (!post || post.status !== 'PUBLISHED') {
     notFound();
   }
 
   const html = await mdToHtml(post.content_md);
-  const overrideTheme = post.themeId ? await db.client.getThemeById(post.themeId) : null;
-  const themeVars = overrideTheme
-    ? tokensToCssVars(coerceTokens(overrideTheme.tokens ?? DEFAULT_TOKENS))
-    : undefined;
+  const overrideVars = post.theme ? tokensToCssVars(coerceTokens(post.theme.tokens)) : null;
+  const created = new Date(post.createdAt);
 
   return (
-    <main style={themeVars}>
-      <h1 style={{ fontWeight: 600 }}>{post.title}</h1>
-      <Prose html={html} />
-    </main>
+    <div style={overrideVars ? { ...overrideVars, backgroundColor: 'var(--bg)', color: 'var(--text)' } : undefined}>
+      <article className="prose">
+        <header style={{ marginBottom: '2.5rem' }}>
+          <h1 style={{ marginTop: 0 }}>{post.title}</h1>
+          <time dateTime={created.toISOString()} className="status-indicator">
+            {created.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+          </time>
+        </header>
+        <div dangerouslySetInnerHTML={{ __html: html }} />
+      </article>
+    </div>
   );
 }

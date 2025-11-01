@@ -1,40 +1,50 @@
-# Deploy without Prisma
+# Deployment
 
-The project ships with a JSON-backed data layer so it can be deployed even when `@prisma/client` and `prisma` are unavailable. The app reads from `DATABASE_PATH` (default `./data/app.json`) and never runs Prisma commands during build.
+The journaling blog uses Prisma with SQLite and NextAuth. Deployment requires running Prisma migrations and the seed script before starting the server.
 
-## Option 1: Local build → deploy
+## Environment variables
 
-1. Install dependencies and prepare the data file locally:
+Set the following variables in your hosting provider:
+
+- `DATABASE_URL` – e.g. `file:./prisma/dev.db` or a platform-specific SQLite path.
+- `NEXTAUTH_SECRET` – a long random string for JWT signing.
+- `NEXTAUTH_URL` – the canonical site URL.
+- `OWNER_EMAIL`, `OWNER_PASSWORD`, `OWNER_ID` – credentials for the owner account seed.
+
+## Build steps
+
+1. Install dependencies:
+
    ```bash
    npm install
+   ```
+
+2. Apply database migrations:
+
+   ```bash
    npm run migrate
+   ```
+
+3. Seed the owner account and default theme:
+
+   ```bash
    npm run seed
    ```
-2. Commit the generated `data/app.json` if you want a snapshot of the seeded state.
-3. Deploy to your platform (e.g., Vercel). The app will boot using the committed JSON database.
 
-## Option 2: Remote environment with writable storage
+4. Build the app:
 
-1. Configure the following environment variables:
-   - `DATABASE_PATH` (e.g., `/var/data/app.json`)
-   - `SESSION_SECRET`
-   - `OWNER_EMAIL`, `OWNER_PASSWORD`, `OWNER_ID`
-2. Add build steps:
    ```bash
-   npm install
-   npm run migrate
-   npm run seed
    npm run build
    ```
-3. Ensure the directory for `DATABASE_PATH` is writable by the runtime. Mount a volume if running in Docker.
 
-## Docker
+5. Start the production server:
 
-A simple Docker workflow:
+   ```bash
+   npm run start
+   ```
 
-```bash
-docker build -t writing-portfolio .
-docker run -p 3000:3000 -v $(pwd)/data:/app/data writing-portfolio
-```
+## SQLite considerations
 
-This mounts the `data` folder so the JSON database persists between runs.
+- Ensure the directory that contains `prisma/dev.db` is writable by the runtime.
+- For containerized deployments mount a volume for the `prisma` directory if you need persistence.
+- When using read-only builds (e.g. Vercel), run migrations and seed during the build step so the generated database file is available at runtime.

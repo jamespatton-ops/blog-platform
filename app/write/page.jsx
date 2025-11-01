@@ -1,21 +1,24 @@
-import { safeDb } from '@/lib/db';
-import Editor from '@/components/Editor';
+import { redirect } from 'next/navigation';
+import { prisma } from '@/lib/prisma';
+import { getAuthSession } from '@/lib/auth';
+import { EditorShell } from '@/components/EditorShell';
 
 export default async function WritePage() {
-  const db = await safeDb();
-  if (!db.available) {
-    return (
-      <main>
-        <p style={{ marginTop: '2rem', opacity: 0.7 }}>
-          Database not initialized. Run <code>npm run migrate</code> and <code>npm run seed</code> before writing.
-        </p>
-      </main>
-    );
+  const session = await getAuthSession();
+  if (!session?.user?.id) {
+    redirect('/login');
   }
 
+  const themes = await prisma.theme.findMany({
+    where: { ownerId: session.user.id },
+    orderBy: { name: 'asc' },
+    select: { id: true, name: true }
+  });
+
   return (
-    <main>
-      <Editor />
-    </main>
+    <>
+      <h1>New entry</h1>
+      <EditorShell initialPost={null} themes={themes} />
+    </>
   );
 }

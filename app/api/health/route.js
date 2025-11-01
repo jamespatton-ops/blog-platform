@@ -1,17 +1,25 @@
-import { safeDb } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
-const ENV_VARS = ['SESSION_SECRET', 'DATABASE_PATH', 'OWNER_EMAIL', 'OWNER_PASSWORD', 'OWNER_ID'];
+const ENV_VARS = ['NEXTAUTH_SECRET', 'DATABASE_URL', 'OWNER_EMAIL', 'OWNER_PASSWORD', 'OWNER_ID'];
 
 export async function GET() {
-  const db = await safeDb();
+  let dbStatus = 'connected';
+  let ok = true;
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+  } catch (error) {
+    ok = false;
+    dbStatus = error.message ?? 'unavailable';
+  }
+
   const env = ENV_VARS.reduce((acc, key) => {
     acc[key] = Boolean(process.env[key]);
     return acc;
   }, {});
 
   return Response.json({
-    ok: db.available,
-    db: db.available ? 'connected' : db.reason,
+    ok,
+    db: dbStatus,
     env
   });
 }

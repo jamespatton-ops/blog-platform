@@ -1,0 +1,69 @@
+// This Prisma schema models the minimalist journaling blog data model.
+// SQLite database located at ./prisma/dev.db by default.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model User {
+  id       String   @id @default(cuid())
+  email    String   @unique
+  hash     String
+  posts    Post[]
+  themes   Theme[]
+  fonts    FontFace[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Post {
+  id         String     @id @default(cuid())
+  author     User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId   String
+  title      String
+  slug       String     @unique
+  content_md String
+  status     PostStatus
+  theme      Theme?     @relation(fields: [themeId], references: [id], onDelete: SetNull)
+  themeId    String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model Theme {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  tokens    Json
+  isDefault Boolean  @default(false)
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId   String
+  posts     Post[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FontFace {
+  id        String  @id @default(cuid())
+  family    String
+  style     String
+  weightMin Int
+  weightMax Int
+  srcUrl    String
+  display   String
+  owner     User    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}

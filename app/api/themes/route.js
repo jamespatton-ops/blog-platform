@@ -1,44 +1,80 @@
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { safeDb } from '@/lib/db';
-import { OWNER_ID } from '@/lib/constants';
-import { DEFAULT_TOKENS, normalizeTokens } from '@/lib/tokens';
+import { prisma } from '@/lib/prisma';
+import { requireAuthUser } from '@/lib/auth';
+import { ThemeTokensSchema, coerceTokens } from '@/lib/tokens';
 
-const ThemePayload = z.object({
-  id: z.string().optional(),
-  name: z.string().min(1),
-  tokens: z.unknown(),
+const themeCreateSchema = z.object({
+  name: z.string().min(2).max(64),
+  tokens: ThemeTokensSchema,
   isDefault: z.boolean().optional()
 });
 
+function sanitizeTheme(theme) {
+  return {
+    id: theme.id,
+    name: theme.name,
+    tokens: coerceTokens(theme.tokens),
+    isDefault: theme.isDefault,
+    ownerId: theme.ownerId,
+    createdAt: theme.createdAt,
+    updatedAt: theme.updatedAt
+  };
+}
+
+async function ensureSingleDefault(ownerId, defaultId) {
+  await prisma.theme.updateMany({
+    where: { ownerId, id: { not: defaultId } },
+    data: { isDefault: false }
+  });
+}
+
 export async function GET() {
-  const db = await safeDb();
-  if (!db.available) {
-    return Response.json({ theme: { name: 'Default', tokens: DEFAULT_TOKENS } });
+  let user;
+  try {
+    user = await requireAuthUser();
+  } catch (error) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const theme = await db.client.getDefaultTheme();
-  return Response.json({ theme: theme ?? { name: 'Default', tokens: DEFAULT_TOKENS } });
+  const themes = await prisma.theme.findMany({
+    where: { ownerId: user.id },
+    orderBy: { name: 'asc' }
+  });
+  return NextResponse.json({ themes: themes.map(sanitizeTheme) });
 }
 
 export async function POST(request) {
-  const db = await safeDb();
-  if (!db.available) {
-    return Response.json({ error: 'Database unavailable' }, { status: 503 });
+  let user;
+  try {
+    user = await requireAuthUser();
+  } catch (error) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-
-  const json = await request.json().catch(() => null);
-  const parsed = ThemePayload.safeParse(json);
+  const body = await request.json().catch(() => ({}));
+  const parsed = themeCreateSchema.safeParse(body);
   if (!parsed.success) {
-    return Response.json({ error: 'Invalid payload' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid payload', details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const tokens = normalizeTokens(parsed.data.tokens);
-  const theme = await db.client.upsertTheme({
-    id: parsed.data.id,
-    name: parsed.data.name,
-    tokens,
-    isDefault: parsed.data.isDefault ?? false,
-    ownerId: OWNER_ID
-  });
+  const { name, tokens, isDefault } = parsed.data;
 
-  return Response.json({ theme });
+  try {
+    const created = await prisma.theme.create({
+      data: {
+        ownerId: user.id,
+        name,
+        tokens,
+        isDefault: Boolean(isDefault)
+      }
+    });
+    if (created.isDefault) {
+      await ensureSingleDefault(user.id, created.id);
+    }
+    return NextResponse.json({ theme: sanitizeTheme(created) }, { status: 201 });
+  } catch (error) {
+    if (error?.code === 'P2002') {
+      return NextResponse.json({ error: 'Theme name already exists' }, { status: 409 });
+    }
+    return NextResponse.json({ error: 'Unable to create theme' }, { status: 500 });
+  }
 }
