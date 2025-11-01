@@ -1,0 +1,77 @@
+:root {
+  --font: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Inter,Arial,sans-serif;
+  --max-ch: 72;
+  --base: 18px;
+  --leading: 1.55;
+  --text: #0b0b0b;
+  --bg: #ffffff;
+  --accent: #0f62fe;
+  --space: 1rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: var(--base);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: var(--leading);
+}
+
+main {
+  width: 100%;
+  max-width: min(100vw - 2rem, calc(var(--max-ch) * 1ch));
+  margin: calc(var(--space) * 4) auto;
+}
+
+a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+p,
+ul,
+ol,
+blockquote {
+  margin: calc(var(--space) * 1.25) 0;
+}
+
+hr,
+.card,
+.shadow,
+.border {
+  all: unset;
+}
+
+input,
+textarea,
+button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border-radius: 0;
+}
+
+button {
+  border: 1px solid currentColor;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
