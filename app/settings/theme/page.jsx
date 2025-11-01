@@ -1,23 +1,26 @@
-import { safeDb } from '@/lib/db';
+import { redirect } from 'next/navigation';
+import { prisma } from '@/lib/prisma';
+import { getAuthSession } from '@/lib/auth';
 import { ThemeControls } from '@/components/ThemeControls';
-import { DEFAULT_THEME_NAME } from '@/lib/constants';
-import { DEFAULT_TOKENS } from '@/lib/tokens';
 
 export default async function ThemeSettingsPage() {
-  const db = await safeDb();
-  const theme = db.available ? await db.client.getDefaultTheme() : null;
+  const session = await getAuthSession();
+  if (!session?.user?.id) {
+    redirect('/login');
+  }
 
-  const value = theme ?? { id: undefined, name: DEFAULT_THEME_NAME, tokens: DEFAULT_TOKENS };
+  const [themes, fonts] = await Promise.all([
+    prisma.theme.findMany({
+      where: { ownerId: session.user.id },
+      orderBy: { createdAt: 'asc' }
+    }),
+    prisma.fontFace.findMany({
+      where: { ownerId: session.user.id },
+      orderBy: { createdAt: 'asc' }
+    })
+  ]);
 
   return (
-    <main>
-      <h1 style={{ fontWeight: 600, fontSize: '1.5rem', marginBottom: '2rem' }}>Theme</h1>
-      {!db.available && (
-        <p style={{ marginBottom: '1.5rem', opacity: 0.7 }}>
-          Theme editor is unavailable until the database is initialized.
-        </p>
-      )}
-      <ThemeControls theme={value} />
-    </main>
+    <ThemeControls initialThemes={themes} initialFonts={fonts} />
   );
 }
