@@ -1,47 +1,29 @@
 import type { Metadata } from 'next';
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import '@/styles/globals.css';
 import { prisma } from '@/lib/db';
-
-const DEFAULT_THEME = {
-  font_stack: '-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Inter,Arial,sans-serif',
-  max_width_ch: 72,
-  base_font_size_px: 18,
-  leading: 1.55,
-  text_color: '#0b0b0b',
-  bg_color: '#ffffff',
-  accent_color: '#0f62fe'
-};
+import { coerceTokens, tokensToCssVars } from '@/lib/theme';
+import { DEFAULT_TOKENS } from '@/lib/tokens';
 
 export const metadata: Metadata = {
-  title: 'Journal',
+  title: 'Writing Portfolio',
   description: 'A calm place for collected writing.'
 };
 
-export const dynamic = 'force-dynamic';
+async function loadDefaultTokens() {
+  const theme = await prisma.theme.findFirst({
+    where: { isDefault: true },
+    select: { tokens: true }
+  });
 
-async function loadTheme() {
-  const theme = await prisma.theme.findFirst();
-  if (!theme) return DEFAULT_THEME;
-  return theme;
+  return coerceTokens(theme?.tokens ?? DEFAULT_TOKENS);
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const theme = await loadTheme();
+  const tokens = await loadDefaultTokens();
 
   return (
-    <html
-      lang="en"
-      style={{
-        '--font': theme.font_stack,
-        '--max-ch': String(theme.max_width_ch),
-        '--base': `${theme.base_font_size_px}px`,
-        '--leading': String(theme.leading),
-        '--text': theme.text_color,
-        '--bg': theme.bg_color,
-        '--accent': theme.accent_color
-      } as CSSProperties}
-    >
+    <html lang="en" style={tokensToCssVars(tokens)}>
       <body>{children}</body>
     </html>
   );

@@ -7,6 +7,10 @@ type PostListItem = {
 };
 
 export function PostList({ posts }: { posts: PostListItem[] }) {
+  if (posts.length === 0) {
+    return <p style={{ marginTop: '2rem', opacity: 0.7 }}>No published posts yet.</p>;
+  }
+
   return (
     <ul style={{ listStyle: 'none', padding: 0, margin: '2rem 0 0' }}>
       {posts.map((post) => (

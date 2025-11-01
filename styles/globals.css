@@ -6,6 +6,7 @@
   --text: #0b0b0b;
   --bg: #ffffff;
   --accent: #0f62fe;
+  --space: 1rem;
 }
 
 * {
@@ -18,15 +19,16 @@ html {
 
 body {
   margin: 0;
+  font-family: var(--font);
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font);
   line-height: var(--leading);
 }
 
 main {
+  width: 100%;
   max-width: min(100vw - 2rem, calc(var(--max-ch) * 1ch));
-  margin: 4rem auto;
+  margin: calc(var(--space) * 4) auto;
 }
 
 a {
@@ -36,6 +38,13 @@ a {
 
 a:hover {
   text-decoration-thickness: 2px;
+}
+
+p,
+ul,
+ol,
+blockquote {
+  margin: calc(var(--space) * 1.25) 0;
 }
 
 hr,
@@ -50,10 +59,11 @@ textarea,
 button {
   font: inherit;
   color: inherit;
+  background: transparent;
+  border-radius: 0;
 }
 
 button {
-  background: transparent;
   border: 1px solid currentColor;
   padding: 0.5rem 0.75rem;
   cursor: pointer;

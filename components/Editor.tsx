@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type EditorInitial = {
   id?: string;
@@ -16,12 +16,52 @@ export default function Editor({ initial }: { initial?: EditorInitial }) {
   const [postId, setPostId] = useState<string | null>(initial?.id ?? null);
   const [title, setTitle] = useState(initial?.title ?? '');
   const [body, setBody] = useState(initial?.content_md ?? '');
-  const [status, setStatus] = useState<'DRAFT' | 'PUBLISHED'>(initial?.status ?? 'DRAFT');
+  const [published, setPublished] = useState(initial?.status === 'PUBLISHED');
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [previewHtml, setPreviewHtml] = useState('');
   const autosaveTimer = useRef<number>();
   const previewTimer = useRef<number>();
+
+  const persist = useCallback(
+    async (override?: Partial<{ published: boolean }>) => {
+      setSaving(true);
+      setError(null);
+      try {
+        const payload = {
+          title: title.trim() || 'Untitled',
+          content_md: body,
+          published: override?.published ?? published
+        };
+        const response = await fetch(postId ? `/api/posts/${postId}` : '/api/posts', {
+          method: postId ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          throw new Error(`Request failed with ${response.status}`);
+        }
+
+        const json = await response.json();
+        if (!postId && json.id) {
+          setPostId(json.id as string);
+        }
+        if (typeof json.status === 'string') {
+          setPublished(json.status === 'PUBLISHED');
+        }
+        setDirty(false);
+        return json;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unable to save');
+        return null;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [body, postId, published, title]
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -37,6 +77,7 @@ export default function Editor({ initial }: { initial?: EditorInitial }) {
         .then((json) => setPreviewHtml(json.html ?? ''))
         .catch(() => {});
     }, PREVIEW_DELAY);
+
     return () => {
       controller.abort();
       window.clearTimeout(previewTimer.current);
@@ -44,63 +85,42 @@ export default function Editor({ initial }: { initial?: EditorInitial }) {
   }, [body]);
 
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty) {
+      return () => undefined;
+    }
     window.clearTimeout(autosaveTimer.current);
     autosaveTimer.current = window.setTimeout(() => {
       void persist();
     }, AUTOSAVE_DELAY);
+
     return () => {
       window.clearTimeout(autosaveTimer.current);
     };
-  }, [title, body, dirty]);
-
-  async function persist(extra?: Partial<{ status: 'DRAFT' | 'PUBLISHED' }>) {
-    setSaving(true);
-    const payload: Record<string, unknown> = {
-      title,
-      content_md: body,
-      status: extra?.status ?? status
-    };
-    const response = await fetch(postId ? `/api/posts/${postId}` : '/api/posts', {
-      method: postId ? 'PUT' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (!response.ok) {
-      setSaving(false);
-      return null;
-    }
-    const json = await response.json();
-    if (!postId && json.id) {
-      setPostId(json.id as string);
-    }
-    if (json.status && json.status !== status) {
-      setStatus(json.status);
-    }
-    setDirty(false);
-    setSaving(false);
-    return json;
-  }
+  }, [dirty, persist, title, body]);
 
   async function togglePublish() {
-    const current = status;
-    const next = current === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED';
-    setStatus(next);
-    const result = await persist({ status: next });
+    const next = !published;
+    setPublished(next);
+    const result = await persist({ published: next });
     if (!result) {
-      setStatus(current);
+      setPublished(!next);
     }
   }
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
         <span style={{ fontSize: '0.875rem', opacity: 0.7 }}>
-          {saving ? 'Saving…' : status === 'PUBLISHED' ? 'Published' : 'Draft'}
+          {saving ? 'Saving…' : dirty ? 'Unsaved changes' : published ? 'Published' : 'Draft'}
         </span>
-        <button type="button" onClick={togglePublish}>
-          {status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button type="button" onClick={() => void persist()} disabled={saving}>
+            Save
+          </button>
+          <button type="button" onClick={togglePublish}>
+            {published ? 'Unpublish' : 'Publish'}
+          </button>
+        </div>
       </div>
       <input
         value={title}
@@ -114,7 +134,7 @@ export default function Editor({ initial }: { initial?: EditorInitial }) {
           fontSize: '1.75rem',
           border: 0,
           outline: 'none',
-          margin: '1rem 0',
+          margin: '1.5rem 0 1rem',
           fontWeight: 600
         }}
       />
@@ -133,7 +153,7 @@ export default function Editor({ initial }: { initial?: EditorInitial }) {
             style={{
               width: '100%',
               minHeight: '60vh',
-              border: '1px solid rgba(0,0,0,0.1)',
+              border: '1px solid rgba(0,0,0,0.12)',
               padding: '1rem',
               resize: 'vertical'
             }}
@@ -144,10 +164,11 @@ export default function Editor({ initial }: { initial?: EditorInitial }) {
             Preview
           </div>
           <div
-            style={{ border: '1px solid rgba(0,0,0,0.1)', padding: '1rem', minHeight: '20vh' }}
+            style={{ border: '1px solid rgba(0,0,0,0.12)', padding: '1rem', minHeight: '20vh' }}
             dangerouslySetInnerHTML={{ __html: previewHtml }}
           />
         </section>
+        {error && <p style={{ color: 'crimson', fontSize: '0.875rem' }}>{error}</p>}
       </div>
     </div>
   );

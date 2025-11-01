@@ -7,40 +7,61 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+}
+
 model User {
-  id     String @id @default(cuid())
-  email  String @unique
+  id     String    @id @default(cuid())
+  email  String    @unique
   hash   String
   posts  Post[]
-  theme  Theme?
+  themes Theme[]
+  fonts  FontFace[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Post {
   id         String     @id @default(cuid())
   authorId   String
+  themeId    String?
   title      String
   slug       String     @unique
   content_md String
   status     PostStatus @default(DRAFT)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
-  author     User       @relation(fields: [authorId], references: [id])
-}
 
-enum PostStatus {
-  DRAFT
-  PUBLISHED
+  author User  @relation(fields: [authorId], references: [id])
+  theme  Theme? @relation(fields: [themeId], references: [id])
 }
 
 model Theme {
-  id                String @id @default(cuid())
-  userId            String @unique
-  font_stack        String @default("-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Inter,Arial,sans-serif")
-  max_width_ch      Int    @default(72)
-  base_font_size_px Int    @default(18)
-  leading           Float  @default(1.55)
-  text_color        String @default("#0b0b0b")
-  bg_color          String @default("#ffffff")
-  accent_color      String @default("#0f62fe")
-  user              User   @relation(fields: [userId], references: [id])
+  id        String   @id @default(cuid())
+  ownerId   String
+  name      String   @unique
+  tokens    Json
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner User  @relation(fields: [ownerId], references: [id])
+  posts Post[]
+}
+
+model FontFace {
+  id        String   @id @default(cuid())
+  ownerId   String
+  name      String
+  style     String   @default("normal")
+  weight    String   @default("400")
+  source    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner User @relation(fields: [ownerId], references: [id])
+
+  @@unique([ownerId, name])
 }

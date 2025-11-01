@@ -1,23 +1,20 @@
 import { prisma } from '@/lib/db';
 import { ThemeControls } from '@/components/ThemeControls';
-
-const defaults = {
-  font_stack: '-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Inter,Arial,sans-serif',
-  max_width_ch: 72,
-  base_font_size_px: 18,
-  leading: 1.55,
-  text_color: '#0b0b0b',
-  bg_color: '#ffffff',
-  accent_color: '#0f62fe'
-};
+import { DEFAULT_THEME_NAME } from '@/lib/constants';
+import { DEFAULT_TOKENS } from '@/lib/tokens';
 
 export default async function ThemeSettingsPage() {
-  const theme = await prisma.theme.findFirst();
+  const theme = await prisma.theme.findFirst({
+    where: { isDefault: true },
+    select: { id: true, name: true, tokens: true }
+  });
+
+  const value = theme ?? { id: undefined, name: DEFAULT_THEME_NAME, tokens: DEFAULT_TOKENS };
 
   return (
     <main>
       <h1 style={{ fontWeight: 600, fontSize: '1.5rem', marginBottom: '2rem' }}>Theme</h1>
-      <ThemeControls initial={theme ?? defaults} />
+      <ThemeControls theme={value} />
     </main>
   );
 }

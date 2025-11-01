@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Writing Portfolio
 
-## Getting Started
+A minimalist writing portfolio built with Next.js 14, Prisma, and NextAuth. Posts are written in Markdown and rendered to sanitized HTML on the server. A single owner can draft, publish, and theme the site using CSS variables.
 
-First, run the development server:
+## Prerequisites
+
+- Node.js 18+
+- SQLite (bundled with Node)
+
+## Setup
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Apply the initial database migration:
+   ```bash
+   npx prisma migrate dev --name init
+   ```
+3. Seed the default owner account and "Plain" theme:
+   ```bash
+   npx tsx scripts/seed-themes.ts
+   ```
+
+Environment defaults are provided in `.env`:
+
+```bash
+DATABASE_URL="file:./dev.db"
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="changeme"
+OWNER_EMAIL="owner@example.com"
+OWNER_PASSWORD="owner-password"
+OWNER_ID="OWNER"
+```
+
+## Development
+
+Start the development server with:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 to view the reader experience. The owner can sign in at http://localhost:3000/login with the seeded credentials. Drafts autosave every three seconds from `/write`, and publishing toggles the post status. Markdown is rendered through `remark`/`rehype` with `rehype-sanitize` to prevent unsafe HTML.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Testing the flow
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Sign in at `/login` using `owner@example.com` / `owner-password`.
+2. Visit `/write`, create a draft, and wait for autosave to finish.
+3. Toggle **Publish**, then open the generated slug under `/p/{slug}` to view the sanitized HTML.
+4. Adjust the site theme at `/settings/theme` by editing the JSON tokens.
 
-## Learn More
+## Deployment
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+When deploying (e.g., to Vercel), set the same environment variables and migrate the database. If SQLite outgrows local storage, point `DATABASE_URL` to a remote SQLite-compatible provider such as Turso.
