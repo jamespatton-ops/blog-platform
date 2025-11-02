@@ -1,7 +1,9 @@
+import { ensureBootstrapped } from '@/lib/bootstrap';
 import { safeDb } from '@/lib/db';
 import Editor from '@/components/Editor';
 
 export default async function WritePage() {
+  await ensureBootstrapped();
   const db = await safeDb();
   if (!db.available) {
     return (

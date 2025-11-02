@@ -12,24 +12,38 @@ A minimalist writing portfolio built with Next.js 14. Posts are written in Markd
    ```bash
    npm install
    ```
-2. Create the local JSON database file:
+
+2. Set up environment variables:
    ```bash
-   npm run migrate
-   ```
-3. Seed the default owner account and "Plain" theme:
-   ```bash
-   npm run seed
+   SESSION_SECRET="change-me"
+   OWNER_EMAIL="owner@example.com"
+   OWNER_PASSWORD="owner-password"
+   OWNER_ID="OWNER"
    ```
 
-Environment defaults are provided in `.env`:
+### Local Development (SQLite)
 
-```bash
-DATABASE_PATH="./data/app.json"
-SESSION_SECRET="change-me"
-OWNER_EMAIL="owner@example.com"
-OWNER_PASSWORD="owner-password"
-OWNER_ID="OWNER"
-```
+For local development, the database will automatically use a local SQLite file (`./data/app.db`). The database and seed data are automatically initialized on first request.
+
+### Production (Turso/libSQL)
+
+For Vercel deployment, use Turso (hosted SQLite):
+
+1. **Create a Turso database:**
+   ```bash
+   turso db create blog-platform
+   turso db tokens create blog-platform
+   ```
+
+2. **Add environment variables in Vercel:**
+   - `LIBSQL_URL` - Your Turso database URL (e.g., `libsql://your-db.turso.io`)
+   - `LIBSQL_AUTH_TOKEN` - Your Turso auth token
+   - `SESSION_SECRET` - Generate with: `openssl rand -base64 32`
+   - `OWNER_EMAIL` - Your owner email
+   - `OWNER_PASSWORD` - Your owner password
+   - `OWNER_ID` - Your owner ID (e.g., `OWNER`)
+
+3. **Deploy** - The database will automatically initialize on first request.
 
 ## Development
 

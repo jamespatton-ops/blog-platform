@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { ensureBootstrapped } from '@/lib/bootstrap';
 import { safeDb } from '@/lib/db';
 import { mdToHtml } from '@/lib/markdown';
 import { coerceTokens, tokensToCssVars } from '@/lib/theme';
@@ -6,6 +7,7 @@ import { DEFAULT_TOKENS } from '@/lib/tokens';
 import Prose from '@/components/Prose';
 
 export default async function PostPage({ params }) {
+  await ensureBootstrapped();
   const db = await safeDb();
   if (!db.available) {
     return (

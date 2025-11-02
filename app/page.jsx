@@ -1,7 +1,9 @@
+import { ensureBootstrapped } from '@/lib/bootstrap';
 import { safeDb } from '@/lib/db';
 import { PostList } from '@/components/PostList';
 
 export default async function Home() {
+  await ensureBootstrapped();
   const db = await safeDb();
   const posts = db.available ? await db.client.listPublishedPosts() : [];
 

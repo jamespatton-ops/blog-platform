@@ -1,9 +1,11 @@
+import { ensureBootstrapped } from '@/lib/bootstrap';
 import { safeDb } from '@/lib/db';
 import { ThemeControls } from '@/components/ThemeControls';
 import { DEFAULT_THEME_NAME } from '@/lib/constants';
 import { DEFAULT_TOKENS } from '@/lib/tokens';
 
 export default async function ThemeSettingsPage() {
+  await ensureBootstrapped();
   const db = await safeDb();
   const theme = db.available ? await db.client.getDefaultTheme() : null;
 

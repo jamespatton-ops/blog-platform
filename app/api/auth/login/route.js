@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ensureBootstrapped } from '@/lib/bootstrap';
 import { safeDb } from '@/lib/db';
 import { attachSession } from '@/lib/auth';
 
@@ -8,6 +9,8 @@ const LoginSchema = z.object({
 });
 
 export async function POST(request) {
+  await ensureBootstrapped();
+  
   const json = await request.json().catch(() => null);
   const parsed = LoginSchema.safeParse(json);
   if (!parsed.success) {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ensureBootstrapped } from '@/lib/bootstrap';
 import { safeDb } from '@/lib/db';
 import { slugify } from '@/lib/slugify';
 
@@ -10,6 +11,7 @@ const UpdateSchema = z.object({
 });
 
 export async function PATCH(request, { params }) {
+  await ensureBootstrapped();
   const db = await safeDb();
   if (!db.available) {
     return Response.json({ error: 'Database unavailable' }, { status: 503 });

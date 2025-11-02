@@ -1,4 +1,5 @@
 import '@/styles/globals.css';
+import { ensureBootstrapped } from '@/lib/bootstrap';
 import { safeDb } from '@/lib/db';
 import { coerceTokens, tokensToCssVars } from '@/lib/theme';
 import { DEFAULT_TOKENS } from '@/lib/tokens';
@@ -9,6 +10,7 @@ export const metadata = {
 };
 
 async function loadDefaultTokens() {
+  await ensureBootstrapped();
   const db = await safeDb();
   if (!db.available) {
     return DEFAULT_TOKENS;

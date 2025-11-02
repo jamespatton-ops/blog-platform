@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ensureBootstrapped } from '@/lib/bootstrap';
 import { safeDb } from '@/lib/db';
 import { OWNER_ID } from '@/lib/constants';
 import { DEFAULT_TOKENS, normalizeTokens } from '@/lib/tokens';
@@ -11,6 +12,7 @@ const ThemePayload = z.object({
 });
 
 export async function GET() {
+  await ensureBootstrapped();
   const db = await safeDb();
   if (!db.available) {
     return Response.json({ theme: { name: 'Default', tokens: DEFAULT_TOKENS } });
@@ -20,6 +22,7 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  await ensureBootstrapped();
   const db = await safeDb();
   if (!db.available) {
     return Response.json({ error: 'Database unavailable' }, { status: 503 });
