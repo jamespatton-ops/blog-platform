@@ -1,0 +1,8 @@
+{
+  "buildCommand": "npm run migrate && npm run build",
+  "installCommand": "npm ci",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD || exit 1",
+  "functions": {
+    "api/**": { "memory": 1024, "maxDuration": 10 }
+  }
+}

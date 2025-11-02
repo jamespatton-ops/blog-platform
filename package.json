@@ -3,12 +3,13 @@
   "version": "0.3.0",
   "private": true,
   "engines": {
-    "node": ">=18"
+    "node": "18.x"
   },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "postinstall": "prisma generate",
     "migrate": "prisma migrate deploy",
     "migrate:dev": "prisma migrate dev",
     "prisma:generate": "prisma generate",
