@@ -25,6 +25,5 @@ export async function POST(request) {
   }
 
   const response = Response.json({ ok: true, user: { id: user.id, email: user.email } });
-  attachSession(response, user.id);
-  return response;
+  return await attachSession(response, user.id);
 }
