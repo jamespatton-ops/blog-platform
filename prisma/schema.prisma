@@ -1,0 +1,58 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  hash      String
+  posts     Post[]
+  themes    Theme[]
+  fonts     FontFace[]
+}
+
+model Post {
+  id         String     @id @default(cuid())
+  authorId   String
+  title      String
+  slug       String     @unique
+  content_md String
+  status     PostStatus @default(DRAFT)
+  themeId    String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  author     User       @relation(fields: [authorId], references: [id])
+  theme      Theme?     @relation(fields: [themeId], references: [id])
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Theme {
+  id        String  @id @default(cuid())
+  name      String  @unique
+  tokens    Json
+  isDefault Boolean @default(false)
+  ownerId   String
+  owner     User    @relation(fields: [ownerId], references: [id])
+  posts     Post[]
+}
+
+model FontFace {
+  id        String @id @default(cuid())
+  family    String
+  style     String @default("normal")
+  weightMin Int    @default(100)
+  weightMax Int    @default(900)
+  srcUrl    String
+  display   String @default("swap")
+  ownerId   String
+  owner     User   @relation(fields: [ownerId], references: [id])
+}
