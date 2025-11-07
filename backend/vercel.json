@@ -1,21 +1,5 @@
 {
   "version": 2,
-  "name": "blog-platform-backend",
-  "builds": [
-    {
-      "src": "server.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "server.js"
-    }
-  ],
-  "env": {
-    "TURSO_DB_URL": "@turso_db_url",
-    "TURSO_DB_AUTH_TOKEN": "@turso_db_auth_token",
-    "FRONTEND_URL": "@frontend_url"
-  }
+  "builds": [{ "src": "server.js", "use": "@vercel/node" }],
+  "routes": [{ "src": "/(.*)", "dest": "server.js" }]
 }

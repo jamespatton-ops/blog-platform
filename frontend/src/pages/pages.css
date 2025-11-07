@@ -1,0 +1,79 @@
+.page {
+  display: grid;
+  gap: 2rem;
+}
+
+.page-header {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.page-header p {
+  color: var(--text-secondary);
+}
+
+.dashboard-section {
+  display: grid;
+  gap: 1rem;
+}
+
+.dashboard-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.dashboard-list li {
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-panel);
+}
+
+.dashboard-list p {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.media-form {
+  display: grid;
+  gap: 0.75rem;
+  background: var(--surface-panel);
+  border: 1px solid var(--surface-border);
+  padding: 1rem;
+  border-radius: 1rem;
+}
+
+.media-form__row {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.media-form input,
+.media-form select,
+.media-form button {
+  border-radius: 0.75rem;
+  border: 1px solid var(--surface-border);
+  padding: 0.6rem 0.85rem;
+  background: var(--surface-background);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.media-form button {
+  border: none;
+  background: var(--accent-primary);
+  color: white;
+  font-weight: 600;
+  justify-self: flex-start;
+  cursor: pointer;
+}
+
+.media-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

@@ -1,0 +1,116 @@
+.theme-section {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+.theme-preview-button {
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  text-align: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+
+.theme-preview {
+  border: 1px solid var(--surface-border);
+  border-radius: var(--preview-radius, 12px);
+  background: var(--preview-background);
+  color: var(--preview-text);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  font-family: var(--preview-font, inherit);
+  box-shadow: var(--shadow-md);
+}
+
+.theme-preview__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+}
+
+.theme-preview__pill {
+  background: var(--preview-accent);
+  color: white;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.theme-preview__buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.theme-preview__buttons button {
+  border: none;
+  border-radius: var(--preview-radius, 12px);
+  padding: 0.5rem 1rem;
+  background: var(--preview-accent);
+  color: white;
+  cursor: pointer;
+}
+
+.theme-preview__buttons button.outline {
+  background: transparent;
+  color: var(--preview-text);
+  border: 1px solid var(--preview-accent);
+}
+
+.theme-form {
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--surface-panel);
+  border: 1px solid var(--surface-border);
+  border-radius: 1rem;
+}
+
+.theme-form__row {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.theme-form__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.theme-form__group label {
+  font-weight: 600;
+}
+
+.theme-form__group input,
+.theme-form__group textarea {
+  border-radius: 0.75rem;
+  border: 1px solid var(--surface-border);
+  padding: 0.65rem 0.85rem;
+  background: var(--surface-background);
+  color: var(--text-primary);
+}
+
+.theme-form button[type='submit'] {
+  justify-self: flex-end;
+  padding: 0.65rem 1.5rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--accent-primary);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.theme-form button[type='submit']:hover {
+  opacity: 0.92;
+}
