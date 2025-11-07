@@ -10,9 +10,12 @@ import { v2 as cloudinary } from 'cloudinary';
 import dotenv from 'dotenv';
 
 import turso from './db.js';
+import runMigrations from './runMigrations.js';
 
 // Load environment variables from .env
 dotenv.config();
+
+await runMigrations();
 
 // Configure Cloudinary credentials.  These values should be set in
 // your environment and never checked into version control.  See
@@ -28,30 +31,33 @@ const app = express();
 
 // Security middlewares
 app.use(helmet());
-// Configure CORS.  When deploying your frontend to Vercel, set
-// CORS_ORIGIN to the URL of your Vercel domain.  The CORS docs show
-// how to allow all origins or specific origins【328272944528732†L118-L133】.
+// Configure CORS to trust the deployed frontend URL. Fall back to
+// wildcard origins only when running in development mode.
+const isDevelopment = process.env.NODE_ENV !== 'production';
+const configuredFrontendUrl = process.env.FRONTEND_URL;
+if (!configuredFrontendUrl && !isDevelopment) {
+  console.warn('FRONTEND_URL is not configured. CORS requests may be rejected in production.');
+}
 app.use(
   cors({
-    // Allow requests from your frontend.  Use FRONTEND_URL to specify
-    // the deployed React/Vite URL (e.g., https://your-app.vercel.app).  Fall
-    // back to '*' in development.
-    origin: process.env.FRONTEND_URL || '*',
+    origin: isDevelopment ? '*' : configuredFrontendUrl,
     credentials: true,
   }),
 );
 // Parse JSON request bodies
 app.use(express.json());
 
-// Rate limiting: limit each IP to 100 requests per 15‑15-minute window.
-// The MDN blog demonstrates how to use express‑rate‑limit to protect
-// Express apps【983068261390070†L388-L414】.  Adjust the values to meet your
-// needs.
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per window
+// Rate limiting: limit each IP to 100 POST requests per 15-minute window.
+const postLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
 });
-app.use('/api', apiLimiter);
+app.use('/api', (req, res, next) => {
+  if (req.method === 'POST') {
+    return postLimiter(req, res, next);
+  }
+  return next();
+});
 
 // Multer configuration for handling photo uploads.  Here we use
 // in‑memory storage so that uploaded files reside in memory until
@@ -95,9 +101,44 @@ function getCurrentDate() {
   return `${year}-${month}-${day}`;
 }
 
+function serializeTags(tags) {
+  if (!tags) {
+    return null;
+  }
+  if (Array.isArray(tags)) {
+    return JSON.stringify(tags);
+  }
+  if (typeof tags === 'string') {
+    return tags;
+  }
+  return JSON.stringify(tags);
+}
+
+function parseMaybeJson(value) {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return value;
+  }
+}
+
 // ---------------------------------------------------------------------
 // Authentication Routes
 // ---------------------------------------------------------------------
+
+app.get('/api/health', async (req, res) => {
+  try {
+    const result = await turso.execute('SELECT 1 as ok');
+    const databaseStatus = result.rows.length > 0 ? 'Connected' : 'Unavailable';
+    res.json({ status: 'OK', database: databaseStatus, timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(500).json({ status: 'ERROR', database: 'Unavailable', timestamp: new Date().toISOString() });
+  }
+});
 
 /**
  * Register a new user.
@@ -289,6 +330,320 @@ app.get('/api/entries/search', authenticateToken, async (req, res, next) => {
       args: [req.user.userId, like, like, like],
     });
     res.json({ entries: result.rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------
+// Media Tracking Routes
+// ---------------------------------------------------------------------
+
+app.get('/api/music', authenticateToken, async (req, res, next) => {
+  try {
+    const result = await turso.execute({
+      sql: 'SELECT * FROM music WHERE user_id = ? ORDER BY created_at DESC',
+      args: [req.user.userId],
+    });
+    const music = result.rows.map((row) => ({
+      ...row,
+      tags: parseMaybeJson(row.tags),
+    }));
+    res.json({ music });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/music', authenticateToken, async (req, res, next) => {
+  try {
+    const { title, artist, album, cover_url, spotify_id, rating, review, listen_date, tags } = req.body;
+    if (!title || !artist) {
+      return res.status(400).json({ error: 'Title and artist are required' });
+    }
+
+    let normalizedRating = null;
+    if (rating !== undefined && rating !== null && rating !== '') {
+      normalizedRating = Number(rating);
+      if (!Number.isInteger(normalizedRating) || normalizedRating < 1 || normalizedRating > 5) {
+        return res.status(400).json({ error: 'Rating must be an integer between 1 and 5' });
+      }
+    }
+
+    const id = uuidv4();
+    await turso.execute({
+      sql:
+        'INSERT INTO music (id, user_id, title, artist, album, cover_url, spotify_id, rating, review, listen_date, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      args: [
+        id,
+        req.user.userId,
+        title,
+        artist,
+        album || null,
+        cover_url || null,
+        spotify_id || null,
+        normalizedRating,
+        review || null,
+        listen_date || null,
+        serializeTags(tags),
+      ],
+    });
+
+    res.status(201).json({
+      id,
+      music: {
+        id,
+        user_id: req.user.userId,
+        title,
+        artist,
+        album: album || null,
+        cover_url: cover_url || null,
+        spotify_id: spotify_id || null,
+        rating: normalizedRating,
+        review: review || null,
+        listen_date: listen_date || null,
+        tags,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/api/movies', authenticateToken, async (req, res, next) => {
+  try {
+    const result = await turso.execute({
+      sql: 'SELECT * FROM movies WHERE user_id = ? ORDER BY created_at DESC',
+      args: [req.user.userId],
+    });
+    const movies = result.rows.map((row) => ({
+      ...row,
+      tags: parseMaybeJson(row.tags),
+    }));
+    res.json({ movies });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/movies', authenticateToken, async (req, res, next) => {
+  try {
+    const { title, year, director, cover_url, imdb_id, rating, review, watch_date, tags } = req.body;
+    if (!title) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
+    let normalizedRating = null;
+    if (rating !== undefined && rating !== null && rating !== '') {
+      normalizedRating = Number(rating);
+      if (!Number.isInteger(normalizedRating) || normalizedRating < 1 || normalizedRating > 5) {
+        return res.status(400).json({ error: 'Rating must be an integer between 1 and 5' });
+      }
+    }
+
+    const id = uuidv4();
+    await turso.execute({
+      sql:
+        'INSERT INTO movies (id, user_id, title, year, director, cover_url, imdb_id, rating, review, watch_date, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      args: [
+        id,
+        req.user.userId,
+        title,
+        year || null,
+        director || null,
+        cover_url || null,
+        imdb_id || null,
+        normalizedRating,
+        review || null,
+        watch_date || null,
+        serializeTags(tags),
+      ],
+    });
+
+    res.status(201).json({
+      id,
+      movie: {
+        id,
+        user_id: req.user.userId,
+        title,
+        year: year || null,
+        director: director || null,
+        cover_url: cover_url || null,
+        imdb_id: imdb_id || null,
+        rating: normalizedRating,
+        review: review || null,
+        watch_date: watch_date || null,
+        tags,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/api/books', authenticateToken, async (req, res, next) => {
+  try {
+    const result = await turso.execute({
+      sql: 'SELECT * FROM books WHERE user_id = ? ORDER BY created_at DESC',
+      args: [req.user.userId],
+    });
+    const books = result.rows.map((row) => ({
+      ...row,
+      tags: parseMaybeJson(row.tags),
+    }));
+    res.json({ books });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/books', authenticateToken, async (req, res, next) => {
+  try {
+    const { title, author, cover_url, isbn, rating, review, status, start_date, end_date, tags } = req.body;
+    if (!title || !author) {
+      return res.status(400).json({ error: 'Title and author are required' });
+    }
+
+    let normalizedRating = null;
+    if (rating !== undefined && rating !== null && rating !== '') {
+      normalizedRating = Number(rating);
+      if (!Number.isInteger(normalizedRating) || normalizedRating < 1 || normalizedRating > 5) {
+        return res.status(400).json({ error: 'Rating must be an integer between 1 and 5' });
+      }
+    }
+
+    const id = uuidv4();
+    await turso.execute({
+      sql:
+        "INSERT INTO books (id, user_id, title, author, cover_url, isbn, rating, review, status, start_date, end_date, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, 'want_to_read'), ?, ?, ?)",
+      args: [
+        id,
+        req.user.userId,
+        title,
+        author,
+        cover_url || null,
+        isbn || null,
+        normalizedRating,
+        review || null,
+        status || null,
+        start_date || null,
+        end_date || null,
+        serializeTags(tags),
+      ],
+    });
+
+    res.status(201).json({
+      id,
+      book: {
+        id,
+        user_id: req.user.userId,
+        title,
+        author,
+        cover_url: cover_url || null,
+        isbn: isbn || null,
+        rating: normalizedRating,
+        review: review || null,
+        status: status || 'want_to_read',
+        start_date: start_date || null,
+        end_date: end_date || null,
+        tags,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/api/themes', async (req, res, next) => {
+  try {
+    const publicResult = await turso.execute({
+      sql: 'SELECT * FROM themes WHERE is_public = 1 ORDER BY created_at DESC',
+    });
+    const publicThemes = publicResult.rows.map((row) => ({
+      ...row,
+      colors: parseMaybeJson(row.colors),
+      fonts: parseMaybeJson(row.fonts),
+      animations: parseMaybeJson(row.animations),
+    }));
+
+    let personalThemes = [];
+    const authHeader = req.headers['authorization'];
+    if (authHeader) {
+      const token = authHeader.split(' ')[1];
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          const personalResult = await turso.execute({
+            sql: 'SELECT * FROM themes WHERE user_id = ? ORDER BY created_at DESC',
+            args: [decoded.userId],
+          });
+          personalThemes = personalResult.rows.map((row) => ({
+            ...row,
+            colors: parseMaybeJson(row.colors),
+            fonts: parseMaybeJson(row.fonts),
+            animations: parseMaybeJson(row.animations),
+          }));
+        } catch (error) {
+          console.warn('Invalid token supplied to /api/themes:', error.message);
+        }
+      }
+    }
+
+    res.json({ public: publicThemes, personal: personalThemes });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/themes', authenticateToken, async (req, res, next) => {
+  try {
+    const { name, is_public, colors, fonts, spacing_scale, borderRadius, animations } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+    if (!colors) {
+      return res.status(400).json({ error: 'Colors are required' });
+    }
+
+    const id = uuidv4();
+    const serializedColors = typeof colors === 'string' ? colors : JSON.stringify(colors);
+    const serializedFonts = fonts ? (typeof fonts === 'string' ? fonts : JSON.stringify(fonts)) : null;
+    const serializedAnimations = animations
+      ? typeof animations === 'string'
+        ? animations
+        : JSON.stringify(animations)
+      : null;
+
+    await turso.execute({
+      sql:
+        'INSERT INTO themes (id, user_id, name, is_public, colors, fonts, spacing_scale, borderRadius, animations) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      args: [
+        id,
+        req.user.userId,
+        name,
+        !!is_public,
+        serializedColors,
+        serializedFonts,
+        spacing_scale || '1.2',
+        borderRadius || '8px',
+        serializedAnimations,
+      ],
+    });
+
+    res.status(201).json({
+      id,
+      theme: {
+        id,
+        user_id: req.user.userId,
+        name,
+        is_public: !!is_public,
+        colors,
+        fonts: fonts || null,
+        spacing_scale: spacing_scale || '1.2',
+        borderRadius: borderRadius || '8px',
+        animations: animations || null,
+      },
+    });
   } catch (err) {
     next(err);
   }

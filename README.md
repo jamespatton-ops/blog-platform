@@ -1,67 +1,124 @@
-# Writing Portfolio
+# OOLUME – Personal Digital Space
 
-A minimalist writing portfolio built with Next.js 14. Posts are written in Markdown and rendered to sanitized HTML on the server. A single owner can draft, publish, and theme the site using CSS variables.
+OOLUME transforms the original journal platform into a personal hub for journaling, media tracking, and theme curation. The monorepo contains an Express backend (`/backend`) powered by Turso/libSQL and a Vite + React frontend (`/frontend`). Both projects target Node.js 18+ runtime environments and are deploy-ready for Vercel.
 
-## Prerequisites
+## Repository layout
 
-- Node.js 18+
+```
+backend/   Express API, Turso client, migration runner
+frontend/  Vite + React app with media dashboards and theming tools
+```
 
-## Setup
+## Quickstart
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
+### 1. Backend (Express)
 
-2. Set up environment variables:
-   ```bash
-   SESSION_SECRET="change-me"
-   OWNER_EMAIL="owner@example.com"
-   OWNER_PASSWORD="owner-password"
-   OWNER_ID="OWNER"
-   ```
+```bash
+cd backend
+npm install
+```
 
-### Local Development (SQLite)
+Create a `.env` file with your local secrets:
 
-For local development, the database will automatically use a local SQLite file (`./data/app.db`). The database and seed data are automatically initialized on first request.
+```
+TURSO_DB_URL=libsql://localhost:8080
+TURSO_DB_AUTH_TOKEN=local-dev-token
+JWT_SECRET=change-me
+FRONTEND_URL=http://localhost:5173
+```
 
-### Production (Turso/libSQL)
+Run the server. The lightweight migration runner executes every SQL file in `backend/migrations` on startup and keeps a log to ensure idempotency.
 
-For Vercel deployment, use Turso (hosted SQLite):
+```bash
+npm start
+# Server runs on http://localhost:3001 by default
+```
 
-1. **Create a Turso database:**
-   ```bash
-   turso db create blog-platform
-   turso db tokens create blog-platform
-   ```
+### 2. Frontend (Vite + React)
 
-2. **Add environment variables in Vercel:**
-   - `LIBSQL_URL` - Your Turso database URL (e.g., `libsql://your-db.turso.io`)
-   - `LIBSQL_AUTH_TOKEN` - Your Turso auth token
-   - `SESSION_SECRET` - Generate with: `openssl rand -base64 32`
-   - `OWNER_EMAIL` - Your owner email
-   - `OWNER_PASSWORD` - Your owner password
-   - `OWNER_ID` - Your owner ID (e.g., `OWNER`)
+```bash
+cd frontend
+npm install
+```
 
-3. **Deploy** - The database will automatically initialize on first request.
+Create `frontend/.env.local` (or `.env`) with the backend URL:
 
-## Development
+```
+VITE_API_URL=http://localhost:3001
+```
 
-Start the development server with:
+Start Vite:
 
 ```bash
 npm run dev
+# Visit http://localhost:5173
 ```
 
-Open http://localhost:3000 to view the reader experience. The owner can sign in at http://localhost:3000/login with the seeded credentials. Drafts autosave every three seconds from `/write`, and publishing toggles the post status. Markdown is rendered through `remark`/`rehype` with `rehype-sanitize` to prevent unsafe HTML.
+### Authentication token
 
-## Testing the flow
+Write operations use bearer JWTs created with the `JWT_SECRET`. Store a token in `localStorage` under the key `ooulume-token` to test POST routes from the UI.
 
-1. Sign in at `/login` using `owner@example.com` / `owner-password`.
-2. Visit `/write`, create a draft, and wait for autosave to finish.
-3. Toggle **Publish**, then open the generated slug under `/p/{slug}` to view the sanitized HTML.
-4. Adjust the site theme at `/settings/theme` by editing the JSON tokens.
+## API overview
 
-## Deployment
+| Route | Method | Description |
+| --- | --- | --- |
+| `/api/health` | GET | Health check with DB connectivity probe |
+| `/api/music` | GET / POST | Manage the authenticated user’s music log |
+| `/api/movies` | GET / POST | Manage the authenticated user’s movie log |
+| `/api/books` | GET / POST | Manage the authenticated user’s bookshelf |
+| `/api/themes` | GET | List public themes (optionally returns personal themes when a valid token is supplied) |
+| `/api/themes` | POST | Create or publish a theme for the authenticated user |
+| `/api/entries` and related routes | Existing journal CRUD endpoints |
 
-See [DEPLOY.md](./DEPLOY.md) for deployment instructions without Prisma.
+All POST routes expect JSON bodies and require a bearer token. Responses use `{ error: "message" }` when requests fail validation or authorization.
+
+## Database migrations
+
+Place SQL files in `backend/migrations`. On server boot, `runMigrations.js` runs any new files inside a transaction-like loop and records completed filenames in `migrations_log`. Each statement is executed individually—errors are logged but do not crash the server. Re-running the server is safe.
+
+## Vercel deployment
+
+Deploy the backend and frontend as separate Vercel projects.
+
+### Backend project (`/backend`)
+
+- Framework preset: **Other** (Node.js)
+- Build command: _none_ (Vercel uses `@vercel/node` via `vercel.json`)
+- Root directory: `backend`
+- Environment variables:
+  - `TURSO_DB_URL=libsql://blog-platform-jamespatton-ops.aws-us-east-1.turso.io`
+  - `TURSO_DB_AUTH_TOKEN=<your JWT token>`
+  - `JWT_SECRET=<random 32+ character string>`
+  - `FRONTEND_URL=<frontend production URL>`
+
+### Frontend project (`/frontend`)
+
+- Framework preset: **Vite**
+- Build command: `npm run build`
+- Output directory: `dist`
+- Root directory: `frontend`
+- Environment variables:
+  - `VITE_API_URL=<backend production URL>`
+
+After deployment, update `FRONTEND_URL` on the backend project to the generated frontend domain and redeploy to finalize CORS.
+
+## Production smoke tests
+
+Once both deployments are live, run the provided acceptance checks (replace placeholders with real URLs/tokens):
+
+```bash
+curl -sS "<BACKEND_URL>/api/health"
+TOKEN="<valid JWT for userId default-user>"
+curl -sS -H "Authorization: Bearer $TOKEN" "<BACKEND_URL>/api/music"
+curl -sS -H "Authorization: Bearer $TOKEN" "<BACKEND_URL>/api/movies"
+curl -sS -H "Authorization: Bearer $TOKEN" "<BACKEND_URL>/api/books"
+curl -sS "<BACKEND_URL>/api/themes"
+```
+
+The frontend deployment should respond with `HTTP 200` when fetched via `curl -I "<FRONTEND_URL>"`.
+
+## Notes
+
+- Never commit secrets—use Vercel project environment variables.
+- The frontend reads API URLs from `import.meta.env.VITE_API_URL`.
+- Update `ooulume-token` in the browser’s storage to switch between demo accounts while testing POST flows.
